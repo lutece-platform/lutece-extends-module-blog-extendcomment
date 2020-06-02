@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<document>
+    <properties>
+        <title>Plugin blog-extendcomment</title>
+    </properties>
+    <body>
+        <section name="Plugin blog-extendcomment">
+            <!--
+            <p>
+                <img src="images/blog-extendcomment.png" />
+            </p>
+            -->
+            <subsection name="Introduction">
+                <p></p>
+            </subsection>
+            <subsection name="Configuration">
+                <p></p>
+            </subsection>
+            <subsection name="Usage">
+                <p></p>
+            </subsection>
+        </section>
+    </body>
+</document>
+
