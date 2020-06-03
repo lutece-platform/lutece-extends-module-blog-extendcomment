@@ -212,9 +212,8 @@ public class BlogExtendCommentJspBean extends AbstractManageBlogExtendcommentJsp
 
         List<Comment> listComments = _commentService.findByResource( resourceExtender.getIdExtendableResource( ), Blog.PROPERTY_RESOURCE_TYPE, commentFilter,
                 nItemsOffset, _nItemsPerPage, config.getAuthorizeSubComments( ) );
-
-        listComments.stream( ).filter( comment -> listBlogsId.stream( ).anyMatch( p -> String.valueOf( p ).equals( comment.getIdExtendableResource( ) ) ) )
-                .collect( Collectors.toList( ) );
+        listComments= listComments.stream( ).filter( comment -> listBlogsId.stream( ).anyMatch( p -> String.valueOf( p ).equals( comment.getIdExtendableResource( ) ) ) )
+        						  .collect( Collectors.toList( ) );
         int nItemsCount = listComments.size( );
 
         // We get the paginator
