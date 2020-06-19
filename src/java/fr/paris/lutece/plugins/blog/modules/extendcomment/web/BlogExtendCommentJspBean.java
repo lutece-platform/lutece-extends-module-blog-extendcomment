@@ -206,7 +206,7 @@ public class BlogExtendCommentJspBean extends AbstractManageBlogExtendcommentJsp
         commentFilter.setAscSort( bIsAscSort );
 
         BlogSearchFilter filter = new BlogSearchFilter( );
-        filter.setUser( adminUser.getFirstName( ) );
+        filter.setUserEditedBlogVersion( adminUser.getAccessCode( ) );
 
         BlogSearchService.getInstance( ).getSearchResults( filter, listBlogsId );
 
