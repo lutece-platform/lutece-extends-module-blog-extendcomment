@@ -39,8 +39,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import javax.inject.Inject;
-import javax.inject.Named;
 import javax.servlet.http.HttpServletRequest;
 
 import org.apache.commons.lang.StringUtils;
@@ -54,6 +52,7 @@ import fr.paris.lutece.plugins.extend.business.extender.ResourceExtenderDTOFilte
 import fr.paris.lutece.plugins.extend.modules.comment.business.Comment;
 import fr.paris.lutece.plugins.extend.modules.comment.business.CommentFilter;
 import fr.paris.lutece.plugins.extend.modules.comment.business.config.CommentExtenderConfig;
+import fr.paris.lutece.plugins.extend.modules.comment.service.CommentPlugin;
 import fr.paris.lutece.plugins.extend.modules.comment.service.CommentService;
 import fr.paris.lutece.plugins.extend.modules.comment.service.ICommentService;
 import fr.paris.lutece.plugins.extend.modules.comment.util.constants.CommentConstants;
@@ -74,7 +73,6 @@ import fr.paris.lutece.portal.util.mvc.admin.annotations.Controller;
 import fr.paris.lutece.portal.util.mvc.commons.annotations.View;
 import fr.paris.lutece.portal.web.constants.Parameters;
 import fr.paris.lutece.portal.web.util.LocalizedDelegatePaginator;
-import fr.paris.lutece.util.date.DateUtil;
 import fr.paris.lutece.util.html.HtmlTemplate;
 import fr.paris.lutece.util.html.IPaginator;
 import fr.paris.lutece.util.html.Paginator;
@@ -88,8 +86,10 @@ import fr.paris.lutece.util.html.Paginator;
 public class BlogExtendCommentJspBean extends AbstractManageBlogExtendcommentJspBean
 {
     // TEMPLATES
+    private static final String JSP_VIEW_EXTENDER_BLOG = "../../../blog/modules/extendcomment/ManageBlogExtendcomment.jsp";
     private static final String TEMPLATE_MANAGE_COMMENTS = "admin/plugins/blog/modules/extendcomment/manage_blog_extendcomment.html";
-    protected static final String VIEW_MANAGE_COMMENT = "manageComment";
+    private static final String VIEW_MANAGE_COMMENT = "manageComment";
+
     // Properties
     private static final String PROPERTY_DEFAULT_LIST_ITEM_PER_PAGE = "blog.extendcomment.listItems.itemsPerPage";
 
@@ -244,6 +244,10 @@ public class BlogExtendCommentJspBean extends AbstractManageBlogExtendcommentJsp
             }
 
         }
+      
+        request.getSession( ).setAttribute(
+                CommentPlugin.PLUGIN_NAME + CommentConstants.SESSION_COMMENT_ADMIN_POST_BACK_URL, JSP_VIEW_EXTENDER_BLOG );
+        
         model.put( CommentConstants.MARK_ALL_RESOURCES, true );
         model.put( CommentConstants.MARK_RESOURCE_EXTENDER_MAP, mapResourceExtender );
 
@@ -273,5 +277,5 @@ public class BlogExtendCommentJspBean extends AbstractManageBlogExtendcommentJsp
         return strContent;
 
     }
-
+  
 }
