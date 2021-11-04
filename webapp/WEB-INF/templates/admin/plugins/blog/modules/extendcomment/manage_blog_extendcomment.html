@@ -267,7 +267,6 @@
 			</@tr>
 			</#list>
 		</@table>
-	</div>
 	 <@paginationAdmin paginator=paginator combo=1 />
 	<script>
 	$(function(){
@@ -279,13 +278,11 @@
 	});
 	</script>
 <#else>
-	<div class="row">
-		<div class="col-xs-12 col-sm-offset-1 col-sm-8">
-			<div class="callout callout-warning" style="margin-top:2em;">
+	<@row>
+		<columns>
+			<@alert color='warning' params='style="margin-top:2em;"'>
 				<h4><i class="fa fa-exclamation"></i> #i18n{module.extend.comment.comment_info.labelNoComment}</h4>
-			</div>
-		</div>
-	</div>
+			</@alert>
+		</@columns>
+	</@row>
 </#if>
-<!-- End box-body -->
-</div>
