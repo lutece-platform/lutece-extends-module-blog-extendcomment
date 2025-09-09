@@ -38,13 +38,13 @@
         <dependency>
             <groupId>fr.paris.lutece.plugins</groupId>
             <artifactId>module-extend-comment</artifactId>
-            <version>[1.1.15,)</version>
+            <version>[1.1.15,1.9.9)</version>
             <type>lutece-plugin</type>
         </dependency>
         <dependency>
             <groupId>fr.paris.lutece.plugins</groupId>
             <artifactId>plugin-blog</artifactId>
-            <version>[3.0.0-SNAPSHOT,)</version>
+            <version>[3.0.0-SNAPSHOT,3.9.9)</version>
             <type>lutece-plugin</type>
         </dependency>
     </dependencies>
@@ -52,7 +52,7 @@
     <properties>
         <componentName>blog-extendcomment</componentName>
         <jiraProjectName>BGEXTDCOMT</jiraProjectName>
-        <jiraComponentId></jiraComponentId>
+        <jiraComponentId />
     </properties>
     <scm>
         <connection>scm:git:https://github.com/lutece-platform/lutece-extends-module-blog-extendcomment.git</connection>
