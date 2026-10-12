@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002-2020, City of Paris
+ * Copyright (c) 2002-2026, City of Paris
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,9 +37,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
-
-import javax.servlet.http.HttpServletRequest;
 
 import org.apache.commons.lang3.StringUtils;
 
@@ -53,229 +52,262 @@ import fr.paris.lutece.plugins.extend.modules.comment.business.Comment;
 import fr.paris.lutece.plugins.extend.modules.comment.business.CommentFilter;
 import fr.paris.lutece.plugins.extend.modules.comment.business.config.CommentExtenderConfig;
 import fr.paris.lutece.plugins.extend.modules.comment.service.CommentPlugin;
-import fr.paris.lutece.plugins.extend.modules.comment.service.CommentService;
 import fr.paris.lutece.plugins.extend.modules.comment.service.ICommentService;
+import fr.paris.lutece.plugins.extend.modules.comment.service.extender.CommentResourceExtender;
 import fr.paris.lutece.plugins.extend.modules.comment.util.constants.CommentConstants;
-import fr.paris.lutece.plugins.extend.service.extender.IResourceExtender;
 import fr.paris.lutece.plugins.extend.service.extender.IResourceExtenderService;
-import fr.paris.lutece.plugins.extend.service.extender.ResourceExtenderService;
 import fr.paris.lutece.plugins.extend.service.extender.config.IResourceExtenderConfigService;
+import fr.paris.lutece.api.user.User;
 import fr.paris.lutece.portal.business.user.AdminUser;
-import fr.paris.lutece.portal.service.admin.AdminUserService;
 import fr.paris.lutece.portal.service.message.AdminMessage;
 import fr.paris.lutece.portal.service.message.AdminMessageService;
 import fr.paris.lutece.portal.service.resource.IExtendableResource;
-import fr.paris.lutece.portal.service.spring.SpringContextService;
-import fr.paris.lutece.portal.service.template.AppTemplateService;
-import fr.paris.lutece.portal.service.util.AppPropertiesService;
 import fr.paris.lutece.portal.service.workflow.WorkflowService;
+import fr.paris.lutece.portal.util.mvc.admin.MVCAdminJspBean;
 import fr.paris.lutece.portal.util.mvc.admin.annotations.Controller;
 import fr.paris.lutece.portal.util.mvc.commons.annotations.View;
+import fr.paris.lutece.portal.web.cdi.mvc.Models;
 import fr.paris.lutece.portal.web.constants.Parameters;
-import fr.paris.lutece.portal.web.util.LocalizedDelegatePaginator;
-import fr.paris.lutece.util.html.HtmlTemplate;
-import fr.paris.lutece.util.html.IPaginator;
-import fr.paris.lutece.util.html.Paginator;
+import fr.paris.lutece.portal.web.util.IPager;
+import fr.paris.lutece.portal.web.util.Pager;
+import fr.paris.lutece.util.url.UrlItem;
+import jakarta.enterprise.context.RequestScoped;
+import jakarta.inject.Inject;
+import jakarta.inject.Named;
+import jakarta.servlet.http.HttpServletRequest;
 
 /**
- * 
- * CommentResourceExtenderComponent
- * 
+ * Lists the comments of the blogs edited by the current administrator.
  */
-@Controller( controllerJsp = "BlogExtendCommentJspBean.jsp", controllerPath = "jsp/admin/plugins/blog/modules/extendcomment", right = "BLOG_EXTENDCOMMENT_MANAGEMENT" )
-public class BlogExtendCommentJspBean extends AbstractManageBlogExtendcommentJspBean
+@RequestScoped
+@Named
+@Controller( controllerJsp = BlogExtendCommentJspBean.CONTROLLER_JSP, controllerPath = BlogExtendCommentJspBean.CONTROLLER_PATH, right = BlogExtendCommentJspBean.RIGHT_MANAGE_BLOG_EXTENDCOMMENT, securityTokenEnabled = true )
+public class BlogExtendCommentJspBean extends MVCAdminJspBean
 {
-    // TEMPLATES
-    private static final String JSP_VIEW_EXTENDER_BLOG = "../../../blog/modules/extendcomment/ManageBlogExtendcomment.jsp";
+    public static final String RIGHT_MANAGE_BLOG_EXTENDCOMMENT = "BLOG_EXTENDCOMMENT_MANAGEMENT";
+
+    static final String CONTROLLER_JSP = "ManageBlogExtendcomment.jsp";
+    static final String CONTROLLER_PATH = "jsp/admin/plugins/blog/modules/extendcomment/";
+
+    private static final long serialVersionUID = 4021186405786498326L;
+
+    private static final String JSP_VIEW_EXTENDER_BLOG = "../../../blog/modules/extendcomment/" + CONTROLLER_JSP;
     private static final String TEMPLATE_MANAGE_COMMENTS = "admin/plugins/blog/modules/extendcomment/manage_blog_extendcomment.html";
     private static final String VIEW_MANAGE_COMMENT = "manageComment";
+    private static final String MESSAGE_PAGE_TITLE = "module.blog.extendcomment.manage_blog_extendcomment.pageTitle";
+    private static final String PROPERTY_ITEMS_PER_PAGE = "blog-extendcomment.listItems.itemsPerPage";
 
-    // Properties
-    private static final String PROPERTY_DEFAULT_LIST_ITEM_PER_PAGE = "blog.extendcomment.listItems.itemsPerPage";
+    @Inject
+    private IResourceExtenderService _resourceExtenderService;
 
-    protected String _strCurrentPageIndex = "1";
-    protected int _nItemsPerPage;
-    protected int _nDefaultItemsPerPage;
+    @Inject
+    private ICommentService _commentService;
 
-    private IResourceExtenderService _extenderService = SpringContextService.getBean( ResourceExtenderService.BEAN_SERVICE );
+    @Inject
+    @Named( CommentConstants.BEAN_CONFIG_SERVICE )
+    private IResourceExtenderConfigService _configService;
 
-    private ICommentService _commentService = SpringContextService.getBean( CommentService.BEAN_SERVICE );
-    private IResourceExtenderConfigService _configService = SpringContextService.getBean( CommentConstants.BEAN_CONFIG_SERVICE );
-    private IResourceExtenderService _resourceExtenderService = SpringContextService.getBean( ResourceExtenderService.BEAN_SERVICE );;
+    @Inject
+    private WorkflowService _workflowService;
+
+    @Inject
+    @Pager( name = "blog-extendcomment.comments", listBookmark = CommentConstants.MARK_LIST_COMMENTS, defaultItemsPerPage = PROPERTY_ITEMS_PER_PAGE, baseUrl = CONTROLLER_PATH
+            + CONTROLLER_JSP )
+    private IPager<Comment, Comment> _pager;
 
     /**
-     * Build the Manage View
+     * Builds the list of the comments of the blogs edited by the current administrator.
      *
      * @param request
      *            The HTTP request
+     * @param model
+     *            The model
      * @return The page
      */
     @View( value = VIEW_MANAGE_COMMENT, defaultView = true )
-    public String getCommentBlog( HttpServletRequest request )
+    public String getManageComment( HttpServletRequest request, Models model )
     {
+        ResourceExtenderDTO resourceExtender = findResourceExtender( request.getParameter( BlogCommentConstants.PARAMETER_ID_EXTENDER ) );
+        CommentExtenderConfig config = resourceExtender == null ? null : _configService.find( resourceExtender.getIdExtender( ) );
 
-        _strCurrentPageIndex = Paginator.getPageIndex( request, Paginator.PARAMETER_PAGE_INDEX, _strCurrentPageIndex );
-        _nDefaultItemsPerPage = AppPropertiesService.getPropertyInt( PROPERTY_DEFAULT_LIST_ITEM_PER_PAGE, 50 );
-        _nItemsPerPage = Paginator.getItemsPerPage( request, Paginator.PARAMETER_ITEMS_PER_PAGE, _nItemsPerPage, _nDefaultItemsPerPage );
-        List<Integer> listBlogsId = new ArrayList<>( );
-        AdminUser adminUser = AdminUserService.getAdminUser( request );
-
-        int nIdExtender = 0;
-        ResourceExtenderDTO resourceExtender = null;
-
-        String strIdExtender = request.getParameter( BlogCommentConstants.PARAMETER_ID_EXTENDER );
-        if ( strIdExtender == null || strIdExtender.isEmpty( ) )
-        {
-
-            ResourceExtenderDTOFilter filter = new ResourceExtenderDTOFilter( );
-            filter.setFilterExtendableResourceType( Blog.PROPERTY_RESOURCE_TYPE );
-            filter.setFilterExtenderType( "comment" );
-            filter.setIncludeWildcardResource( true );
-            List<ResourceExtenderDTO> listExtender = _extenderService.findByFilter( filter );
-            if ( listExtender != null && !listExtender.isEmpty( ) )
-                resourceExtender = listExtender.get( 0 );
-
-        }
-        else
-        {
-            nIdExtender = Integer.parseInt( strIdExtender );
-            resourceExtender = _extenderService.findByPrimaryKey( nIdExtender );
-        }
-
-        if ( resourceExtender == null )
+        if ( config == null )
         {
             return redirect( request, AdminMessageService.getMessageUrl( request, BlogCommentConstants.MESSAGE_UNVAILABLE_EXTENDER, AdminMessage.TYPE_STOP ) );
         }
 
-        IResourceExtender extender = _extenderService.getResourceExtender( resourceExtender.getExtenderType( ) );
-        CommentExtenderConfig config = _configService.find( extender.getKey( ), resourceExtender.getIdExtendableResource( ), Blog.PROPERTY_RESOURCE_TYPE );
+        AdminUser adminUser = getUser( );
 
-        // We get the pagination info from the session
-        Boolean bIsAscSort = false;
-
-        String strIsAscSort = request.getParameter( BlogCommentConstants.COMMENT_ADMIN_IS_ASC_SORT );
-        if ( strIsAscSort != null )
-        {
-            bIsAscSort = Boolean.parseBoolean( strIsAscSort );
-        }
-
+        boolean bIsAscSort = Boolean.parseBoolean( request.getParameter( BlogCommentConstants.COMMENT_ADMIN_IS_ASC_SORT ) );
         String strSortedAttributeName = request.getParameter( BlogCommentConstants.COMMENT_ADMIN_SORTED_ATTRIBUTE_NAME );
-        String strFilterState = request.getParameter( BlogCommentConstants.COMMENT_ADMIN_FILTER_STATE );
-        String strFilterPinned = request.getParameter( BlogCommentConstants.COMMENT_ADMIN_FILTER_PINNED );
-        String strFilterMarkAsImportant = request.getParameter( BlogCommentConstants.COMMENT_ADMIN_FILTER_MARK_AS_IMPORTANT );
-
         String strNewSortedAttributeName = request.getParameter( Parameters.SORTED_ATTRIBUTE_NAME );
         if ( strNewSortedAttributeName != null )
         {
-            // We update sort properties
             strSortedAttributeName = strNewSortedAttributeName;
             bIsAscSort = Boolean.parseBoolean( request.getParameter( Parameters.SORTED_ASC ) );
         }
 
-        if ( request.getParameter( CommentConstants.PARAMETER_FILTER_STATE ) != null )
-        {
-            strFilterState = request.getParameter( CommentConstants.PARAMETER_FILTER_STATE );
-        }
-
-        if ( request.getParameter( CommentConstants.PARAMETER_FILTER_PINNED ) != null )
-        {
-            strFilterPinned = request.getParameter( CommentConstants.PARAMETER_FILTER_PINNED );
-        }
-
-        if ( request.getParameter( CommentConstants.PARAMETER_FILTER_MARK_AS_IMPORTANT ) != null )
-        {
-            strFilterMarkAsImportant = request.getParameter( CommentConstants.PARAMETER_FILTER_MARK_AS_IMPORTANT );
-        }
-
-        int nItemsOffset = _nItemsPerPage * ( Integer.parseInt( _strCurrentPageIndex ) - 1 );
+        String strFilterState = StringUtils.defaultIfEmpty( request.getParameter( CommentConstants.PARAMETER_FILTER_STATE ),
+                request.getParameter( BlogCommentConstants.COMMENT_ADMIN_FILTER_STATE ) );
+        String strFilterPinned = StringUtils.defaultIfEmpty( request.getParameter( CommentConstants.PARAMETER_FILTER_PINNED ),
+                request.getParameter( BlogCommentConstants.COMMENT_ADMIN_FILTER_PINNED ) );
+        String strFilterMarkAsImportant = StringUtils.defaultIfEmpty( request.getParameter( CommentConstants.PARAMETER_FILTER_MARK_AS_IMPORTANT ),
+                request.getParameter( BlogCommentConstants.COMMENT_ADMIN_FILTER_MARK_AS_IMPORTANT ) );
 
         CommentFilter commentFilter = new CommentFilter( );
-        if ( StringUtils.isNotBlank( strFilterState ) && StringUtils.isNumeric( strFilterState ) )
+        if ( StringUtils.isNumeric( strFilterState ) )
         {
             commentFilter.setCommentState( Integer.parseInt( strFilterState ) );
         }
         if ( StringUtils.isNotBlank( strFilterPinned ) )
         {
-            commentFilter.setPinned( new Boolean( strFilterPinned ) );
+            commentFilter.setPinned( Boolean.valueOf( strFilterPinned ) );
         }
         if ( StringUtils.isNotBlank( strFilterMarkAsImportant ) )
         {
-            commentFilter.setImportant( new Boolean( strFilterMarkAsImportant ) );
+            commentFilter.setImportant( Boolean.valueOf( strFilterMarkAsImportant ) );
         }
         commentFilter.setSortedAttributeName( strSortedAttributeName );
         commentFilter.setAscSort( bIsAscSort );
 
-        BlogSearchFilter filter = new BlogSearchFilter( );
-        filter.setUserEditedBlogVersion( adminUser.getAccessCode( ) );
+        Set<String> setEditedBlogs = getEditedBlogs( adminUser );
+        List<Comment> listComments = _commentService
+                .findByResource( resourceExtender.getIdExtendableResource( ), Blog.PROPERTY_RESOURCE_TYPE, commentFilter, 0, 0, false ).stream( )
+                .filter( comment -> setEditedBlogs.contains( comment.getIdExtendableResource( ) ) ).collect( Collectors.toList( ) );
 
-        BlogSearchService.getInstance( ).getSearchResults( filter, listBlogsId );
+        UrlItem urlPager = new UrlItem( CONTROLLER_PATH + CONTROLLER_JSP );
+        urlPager.addParameter( BlogCommentConstants.PARAMETER_ID_EXTENDER, resourceExtender.getIdExtender( ) );
+        addParameterIfPresent( urlPager, CommentConstants.PARAMETER_FILTER_STATE, strFilterState );
+        addParameterIfPresent( urlPager, CommentConstants.PARAMETER_FILTER_PINNED, strFilterPinned );
+        addParameterIfPresent( urlPager, CommentConstants.PARAMETER_FILTER_MARK_AS_IMPORTANT, strFilterMarkAsImportant );
+        addParameterIfPresent( urlPager, Parameters.SORTED_ATTRIBUTE_NAME, strSortedAttributeName );
+        urlPager.addParameter( Parameters.SORTED_ASC, Boolean.toString( bIsAscSort ) );
 
-        List<Comment> listComments = _commentService.findByResource( resourceExtender.getIdExtendableResource( ), Blog.PROPERTY_RESOURCE_TYPE, commentFilter,
-                nItemsOffset, _nItemsPerPage, config.getAuthorizeSubComments( ) );
-        listComments= listComments.stream( ).filter( comment -> listBlogsId.stream( ).anyMatch( p -> String.valueOf( p ).equals( comment.getIdExtendableResource( ) ) ) )
-        						  .collect( Collectors.toList( ) );
-        int nItemsCount = listComments.size( );
+        List<Comment> listPageComments = _pager.withBaseUrl( urlPager.getUrl( ) ).withListItem( listComments ).populateModels( request, model, getLocale( ) )
+                .getPageItems( );
 
-        // We get the paginator
-        IPaginator<Comment> paginator = new LocalizedDelegatePaginator<Comment>( listComments, _nItemsPerPage, getHomeUrl( request ),
-                Paginator.PARAMETER_PAGE_INDEX, _strCurrentPageIndex, nItemsCount, AdminUserService.getLocale( request ) );
-
-        Map<String, Object> model = new HashMap<String, Object>( );
-        List<Comment> listCommentDisplay = paginator.getPageItems( );
-        if ( adminUser != null && WorkflowService.getInstance( ).isAvailable( ) )
+        Map<String, IExtendableResource> mapResources = new HashMap<>( );
+        for ( Comment comment : listPageComments )
         {
-            for ( Comment comment : listCommentDisplay )
-            {
-
-                comment.setListWorkflowActions( WorkflowService.getInstance( ).getActions( comment.getIdComment( ),
-                        _commentService.getResourceType( comment.getExtendableResourceType( ) ), config.getIdWorkflow( ), adminUser ) );
-
-            }
+            completeComment( comment, commentFilter, config, adminUser );
+            mapResources.computeIfAbsent( comment.getIdExtendableResource( ),
+                    strIdResource -> _resourceExtenderService.getExtendableResource( strIdResource, Blog.PROPERTY_RESOURCE_TYPE ) );
         }
 
-        HashMap<String, IExtendableResource> mapResourceExtender = new HashMap<>( );
-        for ( Comment comment : listCommentDisplay )
-        {
-            if ( !mapResourceExtender.containsKey( comment.getIdExtendableResource( ) ) )
-            {
+        request.getSession( ).setAttribute( CommentPlugin.PLUGIN_NAME + CommentConstants.SESSION_COMMENT_ADMIN_POST_BACK_URL, JSP_VIEW_EXTENDER_BLOG );
 
-                mapResourceExtender.put( comment.getIdExtendableResource( ),
-                        _resourceExtenderService.getExtendableResource( comment.getIdExtendableResource( ), resourceExtender.getExtendableResourceType( ) ) );
-            }
-
-        }
-      
-        request.getSession( ).setAttribute(
-                CommentPlugin.PLUGIN_NAME + CommentConstants.SESSION_COMMENT_ADMIN_POST_BACK_URL, JSP_VIEW_EXTENDER_BLOG );
-        
         model.put( CommentConstants.MARK_ALL_RESOURCES, true );
-        model.put( CommentConstants.MARK_RESOURCE_EXTENDER_MAP, mapResourceExtender );
-
+        model.put( CommentConstants.MARK_RESOURCE_EXTENDER_MAP, mapResources );
         model.put( CommentConstants.MARK_ID_EXTENDABLE_RESOURCE, resourceExtender.getIdExtendableResource( ) );
-        model.put( CommentConstants.MARK_EXTENDABLE_RESOURCE_TYPE, resourceExtender.getExtendableResourceType( ) );
-
-        model.put( CommentConstants.MARK_LIST_COMMENTS, listCommentDisplay );
-        model.put( CommentConstants.MARK_PAGINATOR, paginator );
-        model.put( CommentConstants.MARK_NB_ITEMS_PER_PAGE, Integer.toString( paginator.getItemsPerPage( ) ) );
+        model.put( CommentConstants.MARK_EXTENDABLE_RESOURCE_TYPE, Blog.PROPERTY_RESOURCE_TYPE );
+        model.put( BlogCommentConstants.MARK_ID_EXTENDER, resourceExtender.getIdExtender( ) );
         model.put( CommentConstants.MARK_ASC_SORT, bIsAscSort );
         model.put( Parameters.SORTED_ATTRIBUTE_NAME, strSortedAttributeName );
-        model.put( CommentConstants.PARAMETER_ID_COMMENT, request.getParameter( CommentConstants.PARAMETER_ID_COMMENT ) );
         model.put( CommentConstants.MARK_USE_BBCODE, config.getUseBBCodeEditor( ) );
         model.put( CommentConstants.MARK_ADMIN_BADGE, config.getAdminBadge( ) );
         model.put( CommentConstants.MARK_ALLOW_SUB_COMMENTS, config.getAuthorizeSubComments( ) );
         model.put( CommentConstants.MARK_FILTER_STATE, strFilterState );
         model.put( CommentConstants.MARK_FILTER_MARK_AS_IMPORTANT, strFilterMarkAsImportant );
         model.put( CommentConstants.MARK_FILTER_PINNED, strFilterPinned );
-        model.put( CommentConstants.MARK_LIST_COMMENT_STATES, _commentService.getRefListCommentStates( request.getLocale( ) ) );
-        model.put( CommentConstants.MARK_LIST_MARK_AS_IMPORTANT_FILTER, _commentService.getRefListFilterAsImportant( request.getLocale( ) ) );
-        model.put( CommentConstants.MARK_LIST_PINNED_FILTER, _commentService.getRefListFilterAsPinned( request.getLocale( ) ) );
+        model.put( CommentConstants.MARK_LIST_COMMENT_STATES, _commentService.getRefListCommentStates( getLocale( ) ) );
+        model.put( CommentConstants.MARK_LIST_MARK_AS_IMPORTANT_FILTER, _commentService.getRefListFilterAsImportant( getLocale( ) ) );
+        model.put( CommentConstants.MARK_LIST_PINNED_FILTER, _commentService.getRefListFilterAsPinned( getLocale( ) ) );
 
-        HtmlTemplate template = AppTemplateService.getTemplate( TEMPLATE_MANAGE_COMMENTS, request.getLocale( ), model );
-
-        String strContent = template.getHtml( );
-
-        return strContent;
-
+        return getPage( MESSAGE_PAGE_TITLE, TEMPLATE_MANAGE_COMMENTS, model );
     }
-  
+
+    /**
+     * Finds the comment extender of the blogs: the one given by its id, else the one declared for every blog, else the
+     * first one declared for a blog.
+     *
+     * @param strIdExtender
+     *            The id of the extender, may be empty
+     * @return The extender, or null when none matches
+     */
+    private ResourceExtenderDTO findResourceExtender( String strIdExtender )
+    {
+        if ( StringUtils.isNumeric( strIdExtender ) )
+        {
+            ResourceExtenderDTO resourceExtender = _resourceExtenderService.findByPrimaryKey( Integer.parseInt( strIdExtender ) );
+
+            return resourceExtender != null && Blog.PROPERTY_RESOURCE_TYPE.equals( resourceExtender.getExtendableResourceType( ) )
+                    && CommentResourceExtender.EXTENDER_TYPE_COMMENT.equals( resourceExtender.getExtenderType( ) ) ? resourceExtender : null;
+        }
+
+        ResourceExtenderDTOFilter filter = new ResourceExtenderDTOFilter( );
+        filter.setFilterExtendableResourceType( Blog.PROPERTY_RESOURCE_TYPE );
+        filter.setFilterExtenderType( CommentResourceExtender.EXTENDER_TYPE_COMMENT );
+        filter.setIncludeWildcardResource( true );
+        List<ResourceExtenderDTO> listExtenders = _resourceExtenderService.findByFilter( filter );
+
+        if ( listExtenders == null )
+        {
+            return null;
+        }
+
+        return listExtenders.stream( ).filter( extender -> CommentConstants.CONSTANT_ALL_RESSOURCE_ID.equals( extender.getIdExtendableResource( ) ) )
+                .findFirst( ).orElse( listExtenders.isEmpty( ) ? null : listExtenders.get( 0 ) );
+    }
+
+    /**
+     * Gives the ids of the blogs whose versions the administrator edited.
+     *
+     * @param adminUser
+     *            The administrator
+     * @return The ids of the blogs
+     */
+    private Set<String> getEditedBlogs( AdminUser adminUser )
+    {
+        List<Integer> listIdBlogs = new ArrayList<>( );
+        BlogSearchFilter filter = new BlogSearchFilter( );
+        filter.setUserEditedBlogVersion( adminUser.getAccessCode( ) );
+        BlogSearchService.getInstance( ).getSearchResults( filter, listIdBlogs );
+
+        return listIdBlogs.stream( ).map( String::valueOf ).collect( Collectors.toSet( ) );
+    }
+
+    /**
+     * Loads the answers and the workflow actions of a displayed comment.
+     *
+     * @param comment
+     *            The comment
+     * @param commentFilter
+     *            The filter of the list
+     * @param config
+     *            The configuration of the extender
+     * @param adminUser
+     *            The administrator
+     */
+    private void completeComment( Comment comment, CommentFilter commentFilter, CommentExtenderConfig config, AdminUser adminUser )
+    {
+        if ( config.getAuthorizeSubComments( ) )
+        {
+            comment.setListSubComments( _commentService.findByIdParent( comment.getIdComment( ),
+                    Integer.valueOf( Comment.COMMENT_STATE_PUBLISHED ).equals( commentFilter.getCommentState( ) ), commentFilter.getSortedAttributeName( ),
+                    Boolean.TRUE.equals( commentFilter.getAscSort( ) ) ) );
+        }
+
+        if ( _workflowService.isAvailable( ) )
+        {
+            comment.setListWorkflowActions( _workflowService.getActions( comment.getIdComment( ),
+                    _commentService.getResourceType( comment.getExtendableResourceType( ) ), config.getIdWorkflow( ), (User) adminUser ) );
+        }
+    }
+
+    /**
+     * Adds a parameter to an url when it has a value.
+     *
+     * @param url
+     *            The url
+     * @param strName
+     *            The name of the parameter
+     * @param strValue
+     *            The value of the parameter
+     */
+    private static void addParameterIfPresent( UrlItem url, String strName, String strValue )
+    {
+        if ( StringUtils.isNotEmpty( strValue ) )
+        {
+            url.addParameter( strName, strValue );
+        }
+    }
 }
