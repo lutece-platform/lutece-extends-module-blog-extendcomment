@@ -1,0 +1,7 @@
+target/
+logs/
+java.io.tmpdir/
+.migration/
+*.log
+e2e/
+.claude/

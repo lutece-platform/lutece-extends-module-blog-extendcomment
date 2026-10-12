@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002-2020, City of Paris
+ * Copyright (c) 2002-2026, City of Paris
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -34,26 +34,23 @@
 package fr.paris.lutece.plugins.blog.modules.extendcomment.utils;
 
 /**
- * 
- * BlogCommentConstants
- * 
+ * Constants of the blog comment module.
  */
 public final class BlogCommentConstants
 {
 
-    // MESSAGES
-    public static final String MESSAGE_UNVAILABLE_EXTENDER = "module.extend.comment.message.extenderresource.unvailable";
+    public static final String MESSAGE_UNVAILABLE_EXTENDER = "module.blog.extendcomment.message.extenderresource.unvailable";
 
-    public static final String COMMENT_IS_ASC_SORT = "_comment_fo_is_asc_sort";
     public static final String COMMENT_ADMIN_IS_ASC_SORT = "comment_bo_is_asc_sort";
     public static final String COMMENT_ADMIN_SORTED_ATTRIBUTE_NAME = "comment_bo_sorted_attribute_name";
     public static final String COMMENT_ADMIN_FILTER_STATE = "comment_bo_state";
     public static final String COMMENT_ADMIN_FILTER_PINNED = "comment_bo_filter_pinned";
     public static final String COMMENT_ADMIN_FILTER_MARK_AS_IMPORTANT = "comment_bo_filter_mark_as_important";
     public static final String PARAMETER_ID_EXTENDER = "idExtender";
+    public static final String MARK_ID_EXTENDER = "idExtender";
 
     /**
-     * Instantiates a new comment constants.
+     * Private constructor.
      */
     private BlogCommentConstants( )
     {

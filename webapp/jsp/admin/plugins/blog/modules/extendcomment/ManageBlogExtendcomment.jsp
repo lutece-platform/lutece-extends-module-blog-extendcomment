@@ -1,10 +1,9 @@
-
-<jsp:useBean id="blogExtendComment" scope="session" class="fr.paris.lutece.plugins.blog.modules.extendcomment.web.BlogExtendCommentJspBean" />
-<% String strContent = blogExtendComment.processController( request , response ); %>
-
 <%@ page errorPage="../../../../ErrorPage.jsp" %>
+
+${ pageContext.setAttribute( 'strContent', blogExtendCommentJspBean.processController( pageContext.request , pageContext.response ) ) }
+
 <jsp:include page="../../../../AdminHeader.jsp" />
 
-<%= strContent %>
+${ pageContext.getAttribute( 'strContent' ) }
 
 <%@ include file="../../../../AdminFooter.jsp" %>
